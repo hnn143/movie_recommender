@@ -1,11 +1,11 @@
 import numpy as np
 import pandas as pd
+import streamlit as st
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import r2_score
-
-print('\n'.join(f'{m.__name__}=={m.__version__}' for m in globals().values() if getattr(m, '__version__', None)))
+from PIL import Image
 
 movies = pd.read_csv('C:/Users/chicmachina/Desktop/WBS/recommender/ml-latest-small/movies.csv')
 ratings = pd.read_csv('C:/Users/chicmachina/Desktop/WBS/recommender/ml-latest-small/ratings.csv')
@@ -100,10 +100,13 @@ def recomm_item_based(movie_name, n):
 # at least 10 common recommenders
 
 def recomm_item_based10(movie_name, n):
-    if len(movies.loc[movies.title.str.contains(movie_name),'movieId'])>1:
-        return 'ambigious name'
+    if len(movies.loc[movies.title == movie_name,'movieId'])==0:
+        if len(movies.loc[movies.title.str.contains(movie_name),'movieId'])>1:
+            return 'ambigious name'
+        else:
+            return 'this movie is not available'
     else:
-        movie = movies.loc[movies.title.str.contains(movie_name),'movieId'].item()
+        movie = movies.loc[movies.title == movie_name,'movieId'].item()
         common_viewers = user_movie_pivot.loc[user_movie_pivot[movie].notna(), :] # only those viewers that saw the movie
         common_viewers = common_viewers.loc[:,common_viewers.notna().count()>=10] # and only those movies with 10 common viewers
         rest_ratings = common_viewers[movie] # ratings of these viewers
@@ -135,3 +138,33 @@ def recomm_user_based(viewer,n=5):
     print(f'for viewer {viewer} we recommend the following {n} movies based on ratings of viewers with similar taste:')
     return top    
 
+
+##########################################################################
+
+st.title('WBSflix built in one day')
+
+image = Image.open('movies.jpg')
+st.image(image)
+
+st.write('What kind of movie do you want to watch?')
+option = st.selectbox(
+     'Select a genre',
+     ('all', 'Action', 'Adventure', 'Animation', 'Children', 'Comedy', 'Crime',
+       'Documentary', 'Drama', 'Fantasy', 'Film-Noir', 'Horror', 'IMAX',
+       'Musical', 'Mystery', 'Romance', 'Sci-Fi', 'Thriller', 'War',
+       'Western'))
+rating_by_genre = top_movies_weight_option(option,5)
+st.dataframe(rating_by_genre['title'])
+
+st.write('What movie do you like?')
+title = st.text_input('You can write here...')
+rating_by_title = recomm_item_based10(title,5)
+if rating_by_title=='ambigious name':
+    movie_list=movies.title[movies.title.str.contains(title)].to_list()
+    option_title = st.selectbox('Or select a movie here...?',movie_list)
+    rating_by_title2 = recomm_item_based10(option_title,5)
+    st.dataframe(rating_by_title2)
+    #st.write(option_title)
+else:
+    st.dataframe(rating_by_title)
+    #st.write("case 2")
